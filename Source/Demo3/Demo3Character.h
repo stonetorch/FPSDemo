@@ -7,6 +7,8 @@
 #include "InputActionValue.h"
 #include "Demo3Character.generated.h"
 
+class ADemo3PlayerState;
+
 class UInputComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
@@ -20,7 +22,9 @@ class ADemo3Character : public ACharacter
 	GENERATED_BODY()
 
 public:
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	/** 获取PlayerState */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Player State")
+	ADemo3PlayerState* GetDemo3PlayerState() const;
 
 	/** Pawn mesh: 1st person view (arms; seen only by self) */
 	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
@@ -67,26 +71,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Weapon)
 	bool GetHasRifle();
 
-	/** 最大血量 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Health, Replicated)
-	float MaxHealth;
-
-	/** 当前血量 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health, Replicated)
-	float CurrentHealth;
-
 	/** 受到伤害 */
 	UFUNCTION(BlueprintCallable, Category = Health)
 	void TakeDamage(float DamageAmount);
 
-	/** 是否已死亡 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health)
-	bool bIsDead;
-
 protected:
-	/** 死亡处理 */
+	/** 死亡处理 - 服务器端 */
 	UFUNCTION()
 	virtual void OnDeath();
+
+	/** 死亡处理 - 客户端RPC，在拥有该角色的客户端执行 */
+	UFUNCTION(Client, Reliable)
+	void ClientOnDeath();
 
 protected:
 	/** Called for movement input */

@@ -2,6 +2,7 @@
 
 #include "Demo3Character.h"
 #include "Demo3Projectile.h"
+#include "Demo3PlayerState.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -17,11 +18,6 @@ ADemo3Character::ADemo3Character()
 {
 	// Character doesnt have a rifle at start
 	bHasRifle = false;
-	
-	// 初始化血量
-	MaxHealth = 100.0f;
-	CurrentHealth = MaxHealth;
-	bIsDead = false;
 
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
@@ -115,17 +111,14 @@ bool ADemo3Character::GetHasRifle()
 	return bHasRifle;
 }
 
-void ADemo3Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+ADemo3PlayerState* ADemo3Character::GetDemo3PlayerState() const
 {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(ADemo3Character, MaxHealth);
-	DOREPLIFETIME(ADemo3Character, CurrentHealth);
+	return Cast<ADemo3PlayerState>(GetPlayerState());
 }
 
 void ADemo3Character::TakeDamage(float DamageAmount)
 {
-	if (bIsDead || DamageAmount <= 0.0f)
+	if (DamageAmount <= 0.0f)
 	{
 		return;
 	}
@@ -133,13 +126,27 @@ void ADemo3Character::TakeDamage(float DamageAmount)
 	// 只在服务器上处理伤害
 	if (GetLocalRole() == ROLE_Authority)
 	{
-		CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
+		ADemo3PlayerState* PS = GetDemo3PlayerState();
+		if (PS == nullptr)
+		{
+			return;
+		}
+
+		// 如果已经死亡，不再处理伤害
+		if (PS->GetIsDead())
+		{
+			return;
+		}
+
+		// 计算新血量
+		float NewHealth = FMath::Max(0.0f, PS->GetCurrentHealth() - DamageAmount);
+		PS->SetCurrentHealth(NewHealth);
 
 		// 如果血量归零，触发死亡
-		if (CurrentHealth <= 0.0f)
+		if (NewHealth <= 0.0f)
 		{
-			CurrentHealth = 0.0f;
-			bIsDead = true;
+			PS->SetCurrentHealth(0.0f);
+			PS->SetIsDead(true);
 			OnDeath();
 		}
 	}
@@ -147,15 +154,24 @@ void ADemo3Character::TakeDamage(float DamageAmount)
 
 void ADemo3Character::OnDeath()
 {
-	// 禁用输入
+	// 服务器端处理：禁用碰撞
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (GetMesh())
+	{
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	// 调用客户端RPC，自动发送到拥有该角色的客户端
+	ClientOnDeath();
+}
+
+void ADemo3Character::ClientOnDeath_Implementation()
+{
+	// 客户端处理：禁用输入（只在拥有该角色的客户端执行）
 	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
 		DisableInput(PlayerController);
 	}
 
-	// 禁用碰撞
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-	// TODO 死亡效果、复活逻辑
+	// TODO 死亡效果、复活逻辑（UI更新、音效、动画等）
 }

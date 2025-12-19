@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "Demo3GameMode.generated.h"
 
+class ADemo3PlayerState;
+
 UCLASS(minimalapi)
 class ADemo3GameMode : public AGameModeBase
 {
