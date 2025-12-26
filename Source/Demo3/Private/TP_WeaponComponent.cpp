@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "TP_WeaponComponent.h"
+#include "../Public/TP_WeaponComponent.h"
 #include "Demo3Character.h"
-#include "Demo3Projectile.h"
+#include "../Public/Demo3Projectile.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -15,6 +15,7 @@ UTP_WeaponComponent::UTP_WeaponComponent()
 {
 	// Default offset from the character location for projectiles to spawn
 	MuzzleOffset = FVector(100.0f, 0.0f, 10.0f);
+	SetIsReplicatedByDefault(true);
 }
 
 
@@ -102,15 +103,50 @@ void UTP_WeaponComponent::AttachWeapon(ADemo3Character* TargetCharacter)
 		return;
 	}
 
+	EquipMesh(TargetCharacter);
+	CompleteEquip(TargetCharacter);
+}
+
+void UTP_WeaponComponent::EquipMesh(ADemo3Character* TargetCharacter)
+{
+	if (TargetCharacter == nullptr)
+	{
+		return;
+	}
+
+	Character = TargetCharacter;
+
 	// Attach the weapon to the First Person Character
 	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
-	AttachToComponent(Character->GetMesh1P(), AttachmentRules, FName(TEXT("GripPoint")));
+	AttachToComponent(TargetCharacter->GetMesh1P(), AttachmentRules, FName(TEXT("GripPoint")));
 	
 	// switch bHasRifle so the animation blueprint can switch to another animation set
-	Character->SetHasRifle(true);
+	TargetCharacter->SetHasRifle(true);
+}
+
+void UTP_WeaponComponent::UnequipMesh(ADemo3Character* TargetCharacter)
+{
+	if (TargetCharacter == nullptr)
+	{
+		return;
+	}
+
+	// Detach the weapon
+	DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	
+	// switch bHasRifle so the animation blueprint can switch back
+	TargetCharacter->SetHasRifle(false);
+}
+
+void UTP_WeaponComponent::CompleteEquip(ADemo3Character* TargetCharacter)
+{
+	if (TargetCharacter == nullptr)
+	{
+		return;
+	}
 
 	// Set up action bindings
-	if (APlayerController* PlayerController = Cast<APlayerController>(Character->GetController()))
+	if (APlayerController* PlayerController = Cast<APlayerController>(TargetCharacter->GetController()))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
@@ -122,6 +158,23 @@ void UTP_WeaponComponent::AttachWeapon(ADemo3Character* TargetCharacter)
 		{
 			// Fire
 			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &UTP_WeaponComponent::Fire);
+		}
+	}
+}
+
+void UTP_WeaponComponent::CompleteUnequip(ADemo3Character* TargetCharacter)
+{
+	if (TargetCharacter == nullptr)
+	{
+		return;
+	}
+
+	// Remove action bindings
+	if (APlayerController* PlayerController = Cast<APlayerController>(TargetCharacter->GetController()))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Subsystem->RemoveMappingContext(FireMappingContext);
 		}
 	}
 }

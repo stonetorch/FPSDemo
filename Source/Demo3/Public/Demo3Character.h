@@ -5,9 +5,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
+#include "Weapon/WeaponSystemComponent.h"
 #include "Demo3Character.generated.h"
 
 class ADemo3PlayerState;
+class UCombatComponent;
 
 class UInputComponent;
 class USkeletalMeshComponent;
@@ -25,11 +27,17 @@ public:
 	/** 获取PlayerState */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Player State")
 	ADemo3PlayerState* GetDemo3PlayerState() const;
+	
+	UFUNCTION(BlueprintPure)
+	UWeaponSystemComponent* GetWeaponSystemComponent();
 
 	/** Pawn mesh: 1st person view (arms; seen only by self) */
 	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
 	USkeletalMeshComponent* Mesh1P;
-
+	/** 3rd person view (body; seen by others) */
+	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category=Mesh)
+	USkeletalMeshComponent* Mesh3P;
+	
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FirstPersonCameraComponent;
@@ -99,9 +107,14 @@ protected:
 public:
 	/** Returns Mesh1P subobject **/
 	USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
+	/** Returns Mesh3P subobject **/
+	USkeletalMeshComponent* GetMesh3P() const { return Mesh3P; }
 	/** Returns FirstPersonCameraComponent subobject **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
+private:
+	UPROPERTY(EditAnywhere)
+	UWeaponSystemComponent* WeaponSystemComponent;
 
 };
 

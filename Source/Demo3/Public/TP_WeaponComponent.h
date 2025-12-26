@@ -45,6 +45,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void AttachWeapon(ADemo3Character* TargetCharacter);
 
+	/** 装备武器的Mesh（立即执行） */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void EquipMesh(ADemo3Character* TargetCharacter);
+
+	/** 卸载武器的Mesh */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void UnequipMesh(ADemo3Character* TargetCharacter);
+
+	/** 完成装备逻辑（切换ActionBind等，由服务端确认后调用） */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void CompleteEquip(ADemo3Character* TargetCharacter);
+
+	/** 完成卸载逻辑（移除ActionBind等） */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void CompleteUnequip(ADemo3Character* TargetCharacter);
+
 	/** Make the weapon Fire a Projectile */
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Fire();

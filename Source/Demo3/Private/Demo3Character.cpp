@@ -37,6 +37,12 @@ ADemo3Character::ADemo3Character()
 	//Mesh1P->SetRelativeRotation(FRotator(0.9f, -19.19f, 5.2f));
 	Mesh1P->SetRelativeLocation(FVector(-30.f, 0.f, -150.f));
 
+	// Create a mesh component that will be used when being viewed from a '3st person' view
+	Mesh3P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh3P"));
+	Mesh3P->SetOwnerNoSee(true);
+	Mesh3P->SetupAttachment(FirstPersonCameraComponent);
+	// Create Combat Component
+	WeaponSystemComponent = CreateDefaultSubobject<UWeaponSystemComponent>(TEXT("WeaponSystemComponent"));
 }
 
 void ADemo3Character::BeginPlay()
@@ -116,6 +122,11 @@ ADemo3PlayerState* ADemo3Character::GetDemo3PlayerState() const
 	return Cast<ADemo3PlayerState>(GetPlayerState());
 }
 
+UWeaponSystemComponent* ADemo3Character::GetWeaponSystemComponent()
+{
+	return WeaponSystemComponent;
+}
+
 void ADemo3Character::TakeDamage(float DamageAmount)
 {
 	if (DamageAmount <= 0.0f)
@@ -123,9 +134,9 @@ void ADemo3Character::TakeDamage(float DamageAmount)
 		return;
 	}
 
-	// 只在服务器上处理伤害
 	if (GetLocalRole() == ROLE_Authority)
 	{
+		// 服务器权威逻辑
 		ADemo3PlayerState* PS = GetDemo3PlayerState();
 		if (PS == nullptr)
 		{
@@ -149,6 +160,9 @@ void ADemo3Character::TakeDamage(float DamageAmount)
 			PS->SetIsDead(true);
 			OnDeath();
 		}
+	}else if (GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		// TODO 预测逻辑
 	}
 }
 

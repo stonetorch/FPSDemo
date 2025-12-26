@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Demo3GameMode.h"
+#include "../Public/Demo3GameMode.h"
 #include "Demo3Character.h"
-#include "Demo3PlayerState.h"
-#include "Demo3GameState.h"
+#include "../Public/Demo3PlayerState.h"
+#include "../Public/Demo3GameState.h"
 #include "UObject/ConstructorHelpers.h"
 
 ADemo3GameMode::ADemo3GameMode()

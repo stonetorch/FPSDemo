@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Demo3PlayerState.h"
+#include "../Public/Demo3PlayerState.h"
 #include "Net/UnrealNetwork.h"
 
 ADemo3PlayerState::ADemo3PlayerState()
