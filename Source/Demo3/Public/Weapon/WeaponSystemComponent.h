@@ -24,6 +24,7 @@ public:
     UWeaponSystemComponent();
 
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     
     /**
      * @brief 玩家拥有的所有武器实例（背包）

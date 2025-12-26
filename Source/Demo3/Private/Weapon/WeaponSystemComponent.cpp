@@ -26,6 +26,36 @@ void UWeaponSystemComponent::BeginPlay()
 	Super::BeginPlay();
 }
 
+void UWeaponSystemComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	// 销毁系统内管理的所有武器
+
+	// 权威：销毁当前手持武器、销毁背包中的所有武器
+	if (GetOwnerRole() == ROLE_Authority)
+	{
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->OnUnequipped();
+			CurrentWeapon->Destroy();
+		}
+		for (AWeaponBase* Weapon : InventoryWeapons)
+		{
+			Weapon->Destroy();
+		}
+	}
+	// 持有者客户端：调用Weapon::OnUnequipped以取消Action绑定
+	// 其他客户端：调用Weapon::OnUnequipped销毁手持武器Mesh
+	if (GetOwnerRole() <= ROLE_AutonomousProxy)
+	{
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->OnUnequipped();
+			CurrentWeapon->Destroy();
+		}
+	}
+}
+
 void UWeaponSystemComponent::AddWeapon_Implementation(AWeaponBase* weaponActor)
 {
 	// 将一把武器添加到当前玩家武器系统的库存中
