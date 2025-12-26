@@ -19,3 +19,43 @@ ADemo3GameMode::ADemo3GameMode()
 	DefaultPawnClass = PlayerPawnClassFinder.Class;
 
 }
+
+void ADemo3GameMode::AssignTeamFor(APlayerController* InPlayerController)
+{
+	if (ADemo3PlayerState* Demo3PlayerState = InPlayerController->GetPlayerState<ADemo3PlayerState>())
+	{
+		// 统计当前所有玩家的队伍人数
+		int32 RedTeamCount = 0;
+		int32 BlueTeamCount = 0;
+
+		if (ADemo3GameState* Demo3GameState = GetGameState<ADemo3GameState>())
+		{
+			// 遍历所有玩家的 PlayerState
+			for (APlayerState* ps : Demo3GameState->PlayerArray)
+			{
+				if (ADemo3PlayerState* OtherPlayerState = Cast<ADemo3PlayerState>(ps))
+				{
+					// 跳过当前要分配的玩家
+					if (OtherPlayerState == Demo3PlayerState)
+					{
+						continue;
+					}
+
+					// 统计各队伍人数
+					if (OtherPlayerState->Team == ETeam::Red)
+					{
+						RedTeamCount++;
+					}
+					else if (OtherPlayerState->Team == ETeam::Blue)
+					{
+						BlueTeamCount++;
+					}
+				}
+			}
+		}
+
+		// 分配到人数少的队伍，如果人数相等则默认分配到红队
+		ETeam AssignedTeam = (RedTeamCount <= BlueTeamCount) ? ETeam::Red : ETeam::Blue;
+		Demo3PlayerState->SetTeam(AssignedTeam);
+	}
+}

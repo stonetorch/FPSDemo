@@ -3,6 +3,7 @@
 #include "Demo3Character.h"
 #include "Demo3Projectile.h"
 #include "Demo3PlayerState.h"
+#include "Demo3GameMode.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -77,6 +78,12 @@ void ADemo3Character::SetupPlayerInputComponent(class UInputComponent* PlayerInp
 
 		//Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ADemo3Character::Look);
+
+		// 客户端处理：禁用输入（只在拥有该角色的客户端执行）
+		if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+		{
+			EnableInput(PlayerController);
+		}
 	}
 }
 
@@ -173,6 +180,16 @@ void ADemo3Character::OnDeath()
 	if (GetMesh())
 	{
 		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	// 调用玩家死亡事件分发器
+	if (UWorld* World = GetWorld())
+	{
+		if (ADemo3GameMode* GameMode = Cast<ADemo3GameMode>(World->GetAuthGameMode()))
+		{
+			APlayerController* PlayerController = Cast<APlayerController>(GetController());
+			GameMode->OnPlayerDied.Broadcast(this, PlayerController);
+		}
 	}
 
 	// 调用客户端RPC，自动发送到拥有该角色的客户端

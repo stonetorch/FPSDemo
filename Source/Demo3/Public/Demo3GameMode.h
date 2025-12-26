@@ -7,6 +7,10 @@
 #include "Demo3GameMode.generated.h"
 
 class ADemo3PlayerState;
+class ACharacter;
+class APlayerController;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerDiedDelegate, ACharacter*, Character, APlayerController*, PlayerController);
 
 UCLASS(minimalapi)
 class ADemo3GameMode : public AGameModeBase
@@ -15,6 +19,13 @@ class ADemo3GameMode : public AGameModeBase
 
 public:
 	ADemo3GameMode();
+
+	// 玩家死亡事件分发器
+	UPROPERTY(BlueprintAssignable)
+	FOnPlayerDiedDelegate OnPlayerDied;
+
+	UFUNCTION(BlueprintCallable)
+	void AssignTeamFor(APlayerController* InPlayerController);
 };
 
 
