@@ -28,7 +28,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void SwitchToPreviousWeapon();
 
-	// UPROPERTY(EditAnywhere)
+	/**
+	 * @brief 结束游戏。
+	 */
+	UFUNCTION(BlueprintCallable,Client,Reliable)
+	void FinishGame();
+	
+	/**
+	 * @brief 在客户端执行的结束游戏逻辑，不应该直接调用
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category="Gameplay")
+	void ClientFinishGame();
+
+    // UPROPERTY(EditAnywhere)
 	// TSubclassOf<UUserWidget> UMG_Overlay_Class;
 
 private:

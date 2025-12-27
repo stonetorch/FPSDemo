@@ -60,3 +60,13 @@ void AFPSDemoPlayerController::SwitchToPreviousWeapon()
 	WeaponComp->SwitchToPreviousWeapon();
 }
 
+void AFPSDemoPlayerController::FinishGame_Implementation()
+{
+	ClientFinishGame();
+}
+
+void AFPSDemoPlayerController::ClientFinishGame_Implementation()
+{
+	
+}
+
