@@ -2,17 +2,23 @@
 
 #include "Demo3/Public/Weapon/WeaponSystemComponent.h"
 
+#include "Demo3Character.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "FPSDemoPlayerController.h"
 #include "Demo3/Public/Weapon/WeaponBase.h"
 #include "Net/UnrealNetwork.h"
+#include "Weapon/RecoilBase.h"
 
 // Sets default values for this component's properties
 UWeaponSystemComponent::UWeaponSystemComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = false;
+
+	// 初始状态下不Tick，但允许后续启用
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 	
 	// 启用网络复制
 	SetIsReplicatedByDefault(true);
@@ -53,6 +59,24 @@ void UWeaponSystemComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			CurrentWeapon->OnUnequipped();
 			CurrentWeapon->Destroy();
 		}
+	}
+}
+
+void UWeaponSystemComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// 后坐力更新
+	if (ActiveRecoilLogic) ActiveRecoilLogic->Update(DeltaTime);
+}
+
+void UWeaponSystemComponent::SetPlayerController(AFPSDemoPlayerController* PC)
+{
+	if (GetOwnerRole() >= ROLE_AutonomousProxy)
+	{
+		SetComponentTickEnabled(true); // enable tick
+		PlayerController = PC;
 	}
 }
 
@@ -117,15 +141,15 @@ void UWeaponSystemComponent::EnableWeaponInput(AWeaponBase* Weapon)
 		return;
 	}
 	// Set up action bindings
-	if (APlayerController* PlayerController = Cast<APlayerController>(OwnerPawn->GetController()))
+	if (APlayerController* player_controller = Cast<APlayerController>(OwnerPawn->GetController()))
 	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(player_controller->GetLocalPlayer()))
 		{
 			// Set the priority of the mapping to 1, so that it overrides the Jump action with the Fire action when using touch input
 			Subsystem->AddMappingContext(FireMappingContext, 1);
 		}
 
-		if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerController->InputComponent))
+		if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(player_controller->InputComponent))
 		{
 			// Fire
 			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, Weapon, &AWeaponBase::Fire);
@@ -141,9 +165,9 @@ void UWeaponSystemComponent::DisableWeaponInput(AWeaponBase* Weapon)
 	{
 		return;
 	}
-	if (APlayerController* PlayerController = Cast<APlayerController>(OwnerPawn->GetController()))
+	if (APlayerController* player_controller = Cast<APlayerController>(OwnerPawn->GetController()))
 	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(player_controller->GetLocalPlayer()))
 		{
 			Subsystem->RemoveMappingContext(FireMappingContext);
 		}
@@ -169,7 +193,12 @@ void UWeaponSystemComponent::OnRep_CurrentWeapon()
 	if (CurrentWeapon)
 	{
 		CurrentWeapon->OnEquipped();
+
+		// 配置输入
 		EnableWeaponInput(CurrentWeapon);
+
+		// 激活后坐力组件
+		ActiveRecoilLogic = CurrentWeapon->GetRecoil();
 	}
 	
 	// 更新 LastWeapon 为当前的 CurrentWeapon（用于下次 OnRep 调用）

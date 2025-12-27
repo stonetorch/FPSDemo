@@ -59,7 +59,7 @@ public:
 	ADemo3Character();
 
 protected:
-	virtual void BeginPlay();
+	virtual void BeginPlay() override;
 
 public:
 		
