@@ -36,6 +36,10 @@ class DEMO3_API AWeaponBase : public AActor
 public:
     AWeaponBase();
 
+    UPROPERTY(EditAnywhere)
+    TSubclassOf<URecoilBase> RecoilLogicClass;
+    
+    
     /**
      * @brief 后坐力逻辑对象（仅本地使用）
      *
@@ -61,6 +65,12 @@ public:
      * - CurrentWeapon 被替换
      */
     virtual void OnUnequipped();
+    
+    /**
+     * 获取后坐力组件
+     * @return 武器使用的后坐力组件
+     */
+    URecoilBase* GetRecoil();
 
 protected:
     /**

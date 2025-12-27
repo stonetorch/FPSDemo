@@ -5,15 +5,19 @@
 #include "WeaponSystemComponent.generated.h"
 
 
+class URecoilBase;
+class AFPSDemoPlayerController;
 class AWeaponBase;
 /**
- * @brief 武器系统组件（每个玩家一个）
- *
+ * @brief 武器系统组件（每个玩家一个） \n
  * WeaponSystemComponent 负责管理某个玩家拥有的所有 Weapon 实例，
  * 包括：
  * - 武器背包（仅服务器 + 拥有者同步）
  * - 当前手持武器（全客户端同步）
- * - 武器切换、开火等高层逻辑
+ * - 武器切换:开火按键绑定,后坐力组件的改变
+ * - 客户端下后坐力组件的更新
+ * 
+ * @note 需要由持有它的Character在被PlayerController控制时调用SetPlayerController
  */
 UCLASS(ClassGroup=(Weapon), meta=(BlueprintSpawnableComponent))
 class DEMO3_API UWeaponSystemComponent : public UActorComponent
@@ -25,6 +29,9 @@ public:
 
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+    void SetPlayerController(AFPSDemoPlayerController* PC);
     
     /**
      * @brief 玩家拥有的所有武器实例（背包）
@@ -128,6 +135,13 @@ private:
      * @brief 上一把武器（用于 OnRep 回调中获取旧值）
      */
     AWeaponBase* LastWeapon;
+
+    // ============= Recoil: Internal State ================
+    UPROPERTY()
+    AFPSDemoPlayerController* PlayerController;
+    UPROPERTY()
+    URecoilBase* ActiveRecoilLogic;
+    
 #pragma region ActionBind
 public:
     /** MappingContext */

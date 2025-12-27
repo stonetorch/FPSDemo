@@ -9,6 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "FPSDemoPlayerController.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -59,6 +60,8 @@ void ADemo3Character::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+
+	WeaponSystemComponent->SetPlayerController(Cast<AFPSDemoPlayerController>(Controller));
 
 }
 

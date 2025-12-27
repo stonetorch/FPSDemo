@@ -3,6 +3,7 @@
 #include "Demo3/Public/Weapon/WeaponBase.h"
 #include "Demo3Character.h"
 #include "Demo3/Public/Demo3Projectile.h"
+#include "Weapon/RecoilBase.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
@@ -37,7 +38,7 @@ void AWeaponBase::OnEquipped()
 	*   - 本地：生成 1P Mesh
 	*   - 远端：生成 3P Mesh
 	* - 初始化动画状态
-	* - 启用本地后坐力（仅本地）
+	* - 创建并启用本地后坐力（仅本地）
 	* - 绑定射击事件
 	*/
 	
@@ -67,10 +68,14 @@ void AWeaponBase::OnEquipped()
 	
 	// 启用本地后坐力（仅本地）
 	bool bIsLocallyControlled = OwnerPawn->IsLocallyControlled();
-	if (bIsLocallyControlled && RecoilLogic)
+	if (bIsLocallyControlled)
 	{
-		// 启用后坐力逻辑
-		// 注意：具体启用逻辑需要根据 URecoilBase 的实现来实现
+		if(RecoilLogicClass && !RecoilLogic)
+		{
+			RecoilLogic = NewObject<URecoilBase>(this, RecoilLogicClass);
+		}
+		// 重置后坐力状态（装备新武器时重置）
+		RecoilLogic->ResetRecoil();
 	}
 }
 
@@ -98,9 +103,16 @@ void AWeaponBase::OnUnequipped()
 	// 禁用后坐力
 	if (RecoilLogic)
 	{
-		// 禁用后坐力逻辑
-		// 注意：具体禁用逻辑需要根据 URecoilBase 的实现来实现
+		// 重置后坐力状态（卸下武器时重置）
+		RecoilLogic->ResetRecoil();
 	}
+}
+
+URecoilBase* AWeaponBase::GetRecoil()
+{
+	if (RecoilLogic) return RecoilLogic;
+	if (RecoilLogicClass) RecoilLogic = NewObject<URecoilBase>(this, RecoilLogicClass);
+	return RecoilLogic;
 }
 
 void AWeaponBase::Fire()
@@ -117,8 +129,27 @@ void AWeaponBase::Fire()
 	// 2. 调用后坐力组件
 	if (OwnerPawn && OwnerPawn->IsLocallyControlled() && RecoilLogic)
 	{
-		// 应用后坐力
-		// 注意：具体后坐力应用逻辑需要根据 URecoilBase 的实现来实现
+		// 计算后坐力增量
+		float VerticalRecoilAmount = 0.0f;
+		float HorizontalRecoilAmount = 0.0f;
+		RecoilLogic->ComputeRecoil(VerticalRecoilAmount, HorizontalRecoilAmount);
+		
+		// 获取PlayerController并应用后坐力
+		if (APlayerController* PlayerController = Cast<APlayerController>(OwnerPawn->GetController()))
+		{
+			// 获取当前控制旋转
+			FRotator ControllerRotator = PlayerController->GetControlRotation();
+			
+			// 应用后坐力到控制旋转
+			// Pitch: 垂直后坐力（向上）
+			// Yaw: 水平后坐力（左右）
+			// Roll: 保持不变
+			PlayerController->SetControlRotation(FRotator(
+				ControllerRotator.Pitch + VerticalRecoilAmount,
+				ControllerRotator.Yaw + HorizontalRecoilAmount,
+				ControllerRotator.Roll
+			));
+		}
 	}
 	
 	// 3. 使用ServerRPC实现生成子弹的逻辑等
