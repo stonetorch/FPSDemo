@@ -14,8 +14,9 @@ class AWeaponBase;
  * 包括：
  * - 武器背包（仅服务器 + 拥有者同步）
  * - 当前手持武器（全客户端同步）
- * - 武器切换:开火按键绑定,后坐力组件的改变
- * - 客户端下后坐力组件的更新
+ * - 武器切换
+ * - 开火按键绑定
+ * - 客户端下后坐力组件的更新,切换武器时后坐力组件的改变
  * 
  * @note 需要由持有它的Character在被PlayerController控制时调用SetPlayerController
  */
@@ -136,9 +137,10 @@ private:
      */
     AWeaponBase* LastWeapon;
 
-    // ============= Recoil: Internal State ================
+    // ============= Player Controller ===========
     UPROPERTY()
     AFPSDemoPlayerController* PlayerController;
+    // ============= Recoil: Internal State ================
     UPROPERTY()
     URecoilBase* ActiveRecoilLogic;
     
