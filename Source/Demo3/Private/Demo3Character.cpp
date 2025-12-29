@@ -111,9 +111,19 @@ void ADemo3Character::Look(const FInputActionValue& Value)
 
 	if (Controller != nullptr)
 	{
-		// add yaw and pitch input to controller
-		AddControllerYawInput(LookAxisVector.X);
-		AddControllerPitchInput(LookAxisVector.Y);
+		// 获取鼠标灵敏度
+		float HorizontalSensitivity = 1.0f;
+		float VerticalSensitivity = 1.0f;
+		
+		if (AFPSDemoPlayerController* FPSController = Cast<AFPSDemoPlayerController>(Controller))
+		{
+			HorizontalSensitivity = FPSController->GetMouseHorizontalSensitivity();
+			VerticalSensitivity = FPSController->GetMouseVerticalSensitivity();
+		}
+
+		// add yaw and pitch input to controller with sensitivity
+		AddControllerYawInput(LookAxisVector.X * HorizontalSensitivity);
+		AddControllerPitchInput(LookAxisVector.Y * VerticalSensitivity);
 	}
 }
 

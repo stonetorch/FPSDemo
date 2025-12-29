@@ -70,3 +70,13 @@ void AFPSDemoPlayerController::ClientFinishGame_Implementation()
 	
 }
 
+void AFPSDemoPlayerController::SetMouseVerticalSensitivity(float Sensitivity)
+{
+	MouseVerticalSensitivity = FMath::Max(Sensitivity, 0.01f);
+}
+
+void AFPSDemoPlayerController::SetMouseHorizontalSensitivity(float Sensitivity)
+{
+	MouseHorizontalSensitivity = FMath::Max(Sensitivity, 0.1f);
+}
+

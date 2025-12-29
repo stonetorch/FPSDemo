@@ -17,6 +17,30 @@ class DEMO3_API AFPSDemoPlayerController : public APlayerController
 	virtual void OnRep_PlayerState() override;
 
 	virtual void BeginPlay() override;
+#pragma region 输入设置
+public:
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void SetMouseVerticalSensitivity(float Sensitivity);
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void SetMouseHorizontalSensitivity(float Sensitivity);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input")
+	float GetMouseVerticalSensitivity() const { return MouseVerticalSensitivity; }
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input")
+	float GetMouseHorizontalSensitivity() const { return MouseHorizontalSensitivity; }
+
+private:
+	/** 鼠标垂直灵敏度 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	float MouseVerticalSensitivity = 1.0f;
+
+	/** 鼠标水平灵敏度 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	float MouseHorizontalSensitivity = 1.0f;
+
+#pragma endregion 
+#pragma region 玩家执行的操作
 public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void HandlePlayerStateChange(ADemo3PlayerState* ps);
@@ -27,7 +51,9 @@ public:
 	/** 切换到上一把武器 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void SwitchToPreviousWeapon();
-
+#pragma endregion
+	
+public:
 	/**
 	 * @brief 结束游戏。
 	 */
