@@ -67,7 +67,7 @@ void AWeaponBase::OnEquipped()
 	SetupWeaponMesh();
 	
 	// 启用本地后坐力（仅本地）
-	bool bIsLocallyControlled = OwnerPawn->IsLocallyControlled();
+	bool bIsLocallyControlled = OwnerPawn->IsLocallyControlled() && OwnerPawn->IsPlayerControlled();
 	if (bIsLocallyControlled)
 	{
 		if(RecoilLogicClass && !RecoilLogic)

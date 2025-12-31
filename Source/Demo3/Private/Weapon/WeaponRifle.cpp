@@ -55,7 +55,7 @@ void AWeaponRifle::SetupWeaponMesh()
 	}
 	
 	// 判断是否为本地控制
-	bool bIsLocallyControlled = OwnerPawn->IsLocallyControlled();
+	bool bIsLocallyControlled = OwnerPawn->IsLocallyControlled() && OwnerPawn->IsPlayerControlled();
 	
 	// 显示武器 Mesh
 	if (WeaponMesh)
