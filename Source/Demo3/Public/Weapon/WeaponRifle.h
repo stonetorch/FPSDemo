@@ -71,7 +71,8 @@ protected:
     virtual void DetachWeaponMesh() override;
     virtual bool CanFire() const override;
     virtual void ConsumeAmmo() override;
-    virtual void SpawnProjectile() override;
+    virtual void SpawnProjectile(const FRotator& SpawnRotation) override;
+    virtual void SpawnProjectileAimingAt(const FVector& TargetLocation) override;
     virtual void PlayFireEffectsLocal() override;
     virtual void PlayFireEffectsMulticast() override;
 };

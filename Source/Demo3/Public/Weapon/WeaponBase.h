@@ -72,6 +72,26 @@ public:
      */
     URecoilBase* GetRecoil();
 
+    /**
+    * @brief 开火逻辑的入口，由PlayerController调用
+    * 调用后将：
+    * 1. 播放本地效果
+    * 2. 调用后坐力组件
+    * 3. 使用ServerRPC实现生成子弹的逻辑等
+    * 4. NetMulticast开火效果
+    */
+    UFUNCTION(BlueprintCallable)
+    void Fire();
+
+    /**
+     * @brief 由非玩家的Actor开火，一般用于AI敌人。
+    * 调用后将：
+    * 1. 使用ServerRPC实现生成子弹的逻辑等
+    * 2. NetMulticast开火效果
+     */
+    UFUNCTION(BlueprintCallable)
+    void FireNonPlayer(const FVector& TargetLocation);
+
 protected:
     /**
      * @brief 设置武器网格体（在装备时调用）
@@ -100,8 +120,16 @@ protected:
     /**
      * @brief 生成投射物
      * 子类应实现具体的投射物生成逻辑
+     * @param SpawnRotation 发射方向
      */
-    virtual void SpawnProjectile();
+    virtual void SpawnProjectile(const FRotator& SpawnRotation);
+
+    /**
+     * @brief 生成投射物，瞄准目标位置
+     * 子类应实现具体的投射物生成逻辑
+     * @param TargetLocation 目标位置
+     */
+    virtual void SpawnProjectileAimingAt(const FVector& TargetLocation);
 
     /**
      * @brief 播放本地开火效果（音效、动画等）
@@ -119,17 +147,7 @@ protected:
     virtual void GetLifetimeReplicatedProps(
         TArray<FLifetimeProperty>& OutLifetimeProps
     ) const override;
-
-public:
-    /**
-     * @brief 开火逻辑的入口，由PlayerController调用
-     * 调用后将：
-     * 1. 播放本地效果
-     * 2. 调用后坐力组件
-     * 3. 使用ServerRPC实现生成子弹的逻辑等
-     */
-    UFUNCTION(BlueprintCallable)
-    void Fire();
+    
 private:
     /**
      * @brief 服务器权威的射击 RPC
@@ -137,15 +155,24 @@ private:
      * - 扣除弹药
      * - 生成子弹或执行 Hitscan
      * - 触发公共特效（通过 Multicast）
+     * @param ShootRotation 用于指定射击方向的Rotator
      */
     UFUNCTION(Server, Reliable)
-    void ServerFire();
+    void ServerFire(const FRotator& ShootRotation);
 
     /**
-     * @brief 网络多播：在所有客户端播放开火特效
+     * @brief 网络多播：在所有客户端（排除开火者所在的客户端）播放开火特效
      * - 播放音效
      * - 播放动画
      */
     UFUNCTION(NetMulticast, Reliable)
     void NetMulticastFire();
+    
+    /**
+     * @brief 网络多播：在所有客户端（包括开火者所在客户端）播放开火特效。用于 监听服务器 运行的时候同步非玩家（如AI）的开火行为
+     * - 播放音效
+     * - 播放动画
+     */
+    UFUNCTION(NetMulticast, Reliable)
+    void NetMulticastAllFire();
 };

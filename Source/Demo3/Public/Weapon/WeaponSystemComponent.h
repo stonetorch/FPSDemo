@@ -51,6 +51,13 @@ public:
     UFUNCTION(BlueprintCallable,Server,Reliable)
     void AddWeapon(AWeaponBase* weaponActor);
 
+    /** 
+     * @brief 获取当前手持武器
+     * @return 当前手持武器
+     */
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    AWeaponBase* GetCurrentWeapon();
+
     /**
      * @brief 当前手持武器
      *

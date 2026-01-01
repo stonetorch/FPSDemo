@@ -10,6 +10,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
+#include "GameFramework/ProjectileMovementComponent.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 
 // Sets default values
 AWeaponBase::AWeaponBase()
@@ -153,10 +155,34 @@ void AWeaponBase::Fire()
 	}
 	
 	// 3. 使用ServerRPC实现生成子弹的逻辑等
-	ServerFire();
+	APlayerController* PlayerController = Cast<APlayerController>(OwnerPawn->GetController());
+	if (PlayerController == nullptr || PlayerController->PlayerCameraManager == nullptr)
+	{
+		return;
+	}
+	const FRotator ShootRotation = PlayerController->PlayerCameraManager->GetCameraRotation();
+	ServerFire(ShootRotation);
 }
 
-void AWeaponBase::ServerFire_Implementation()
+void AWeaponBase::FireNonPlayer(const FVector& TargetLocation)
+{
+	// 由于使用NetMulticastAllFire，因此总是在所有客户端播放效果，无需考虑监听服务器特殊情况
+// #if !UE_SERVER
+// 	// 作为 监听服务器 的特殊处理
+// 	// 播放本地效果
+// 	PlayFireEffectsLocal();
+// #endif
+
+	// 非玩家场景下，应当仅由权威服务器执行开火
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		SpawnProjectileAimingAt(TargetLocation);
+		
+		NetMulticastAllFire();
+	}
+}
+
+void AWeaponBase::ServerFire_Implementation(const FRotator& ShootRotation)
 {
 	// 服务器权威的射击 RPC
 	// 校验弹药
@@ -175,7 +201,7 @@ void AWeaponBase::ServerFire_Implementation()
 	ConsumeAmmo();
 	
 	// 生成子弹
-	SpawnProjectile();
+	SpawnProjectile(ShootRotation);
 	
 	// 向所有客户端广播开火效果（音效、动画等）
 	NetMulticastFire();
@@ -185,10 +211,22 @@ void AWeaponBase::NetMulticastFire_Implementation()
 {
 	// 网络多播：在所有客户端播放开火特效
 	// 只在其他客户端上执行
-	if (GetLocalRole() != ROLE_SimulatedProxy) return;
-	
+#if !UE_SERVER
+	if (GetLocalRole() == ROLE_SimulatedProxy)
+	{
+		// 播放开火效果
+		PlayFireEffectsMulticast();
+	}
+#endif
+}
+
+void AWeaponBase::NetMulticastAllFire_Implementation()
+{
+	// 网络多播：在所有客户端播放开火特效
+#if !UE_SERVER
 	// 播放开火效果
 	PlayFireEffectsMulticast();
+#endif
 }
 
 void AWeaponBase::SetupWeaponMesh()
@@ -212,7 +250,12 @@ void AWeaponBase::ConsumeAmmo()
 	// 默认实现为空，由子类实现
 }
 
-void AWeaponBase::SpawnProjectile()
+void AWeaponBase::SpawnProjectile(const FRotator& SpawnRotation)
+{
+	// 默认实现为空，由子类实现
+}
+
+void AWeaponBase::SpawnProjectileAimingAt(const FVector& TargetLocation)
 {
 	// 默认实现为空，由子类实现
 }

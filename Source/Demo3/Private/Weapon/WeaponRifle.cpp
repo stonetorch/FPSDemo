@@ -10,6 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 
 AWeaponRifle::AWeaponRifle()
 {
@@ -124,7 +125,7 @@ void AWeaponRifle::ConsumeAmmo()
 	}
 }
 
-void AWeaponRifle::SpawnProjectile()
+void AWeaponRifle::SpawnProjectile(const FRotator& SpawnRotation)
 {
 	// 生成子弹
 	if (ProjectileClass == nullptr)
@@ -144,20 +145,11 @@ void AWeaponRifle::SpawnProjectile()
 		return;
 	}
 	
-	APlayerController* PlayerController = Cast<APlayerController>(OwnerPawn->GetController());
-	if (PlayerController == nullptr || PlayerController->PlayerCameraManager == nullptr)
-	{
-		return;
-	}
-	
-	// 获取相机旋转（射击方向）
-	const FRotator SpawnRotation = PlayerController->PlayerCameraManager->GetCameraRotation();
 	
 	// MuzzleOffset 是相对于相机空间的偏移，需要转换为世界空间
 	// 从角色位置加上旋转后的偏移量得到最终的枪口位置
 	const FVector SpawnLocation = OwnerPawn->GetActorLocation() + SpawnRotation.RotateVector(MuzzleOffset);
 	
-	// 设置生成参数
 	FActorSpawnParameters ActorSpawnParams;
 	ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 	ActorSpawnParams.Owner = OwnerPawn;
@@ -236,5 +228,61 @@ void AWeaponRifle::PlayFireEffectsMulticast()
 			Character->GetActorLocation()
 		);
 	}
+}
+
+void AWeaponRifle::SpawnProjectileAimingAt(const FVector& TargetLocation)
+{
+	// 计算弹道方向并开火
+	APawn* OwnerPawn = Cast<APawn>(Owner);
+	if (!OwnerPawn)
+	{
+		return;
+	}
+	
+	// 获取投射物速度
+	float ProjectileSpeed = 3000.0f; // 默认速度
+	if (ProjectileClass)
+	{
+		ADemo3Projectile* ProjectileCDO = ProjectileClass->GetDefaultObject<ADemo3Projectile>();
+		if (ProjectileCDO && ProjectileCDO->GetProjectileMovement())
+		{
+			ProjectileSpeed = ProjectileCDO->GetProjectileMovement()->InitialSpeed;
+		}
+	}
+	
+	// 计算初始发射位置（使用从角色位置到目标的方向估算）
+	FVector OwnerLocation = OwnerPawn->GetActorLocation();
+	FVector DirectionToTarget = (TargetLocation - OwnerLocation).GetSafeNormal();
+	FRotator InitialDirection = DirectionToTarget.Rotation();
+	FVector LaunchLocation = OwnerLocation + InitialDirection.RotateVector(MuzzleOffset);
+	
+	// 计算能够命中目标的弹道方向
+	FVector LaunchVelocity;
+	FRotator AimRotator;
+	
+	// 使用 UE 的弹道预测函数计算考虑重力的弹道
+	if (UGameplayStatics::SuggestProjectileVelocity(
+		GetWorld(),
+		LaunchVelocity,
+		LaunchLocation,
+		TargetLocation,
+		ProjectileSpeed,
+		false,
+		0.0f,
+		0.0f,
+		ESuggestProjVelocityTraceOption::DoNotTrace))
+	{
+		// 成功计算出速度向量，转换为 Rotator（全局坐标系）
+		AimRotator = LaunchVelocity.Rotation();
+	}
+	else
+	{
+		// 如果无法计算（例如目标太远或无法到达），使用直接瞄准
+		FVector FinalDirectionToTarget = (TargetLocation - LaunchLocation).GetSafeNormal();
+		AimRotator = FinalDirectionToTarget.Rotation();
+	}
+	
+	// 生成投射物
+	SpawnProjectile(AimRotator);
 }
 

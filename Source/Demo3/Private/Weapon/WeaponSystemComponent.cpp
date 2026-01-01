@@ -174,6 +174,11 @@ void UWeaponSystemComponent::DisableWeaponInput(AWeaponBase* Weapon)
 	}
 }
 
+AWeaponBase* UWeaponSystemComponent::GetCurrentWeapon()
+{
+	return CurrentWeapon;
+}
+
 void UWeaponSystemComponent::OnRep_CurrentWeapon()
 {
 	// 当前手持武器发生变化时的回调
