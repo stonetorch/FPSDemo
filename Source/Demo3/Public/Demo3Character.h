@@ -57,7 +57,7 @@ public:
 	
 public:
 	ADemo3Character();
-
+	virtual void PossessedBy(AController* NewController) override;
 protected:
 	virtual void BeginPlay() override;
 

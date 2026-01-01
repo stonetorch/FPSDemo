@@ -47,6 +47,12 @@ ADemo3Character::ADemo3Character()
 	WeaponSystemComponent = CreateDefaultSubobject<UWeaponSystemComponent>(TEXT("WeaponSystemComponent"));
 }
 
+void ADemo3Character::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	WeaponSystemComponent->SetPlayerController(Cast<AFPSDemoPlayerController>(NewController));
+}
+
 void ADemo3Character::BeginPlay()
 {
 	// Call the base class  
@@ -60,7 +66,6 @@ void ADemo3Character::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
-
 	WeaponSystemComponent->SetPlayerController(Cast<AFPSDemoPlayerController>(Controller));
 
 }
