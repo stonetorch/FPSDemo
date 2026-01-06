@@ -4,6 +4,8 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
 #include "Demo3Character.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/DamageEvents.h"
 
 ADemo3Projectile::ADemo3Projectile() 
 {
@@ -46,7 +48,8 @@ void ADemo3Projectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, U
 	{
 		if (HitCharacter != GetOwner())
 		{
-			HitCharacter->TakeDamage(DamageAmount);
+			// 使用标准伤害系统，会自动调用 TakeDamage
+			UGameplayStatics::ApplyDamage(HitCharacter, DamageAmount, GetInstigatorController(), this, UDamageType::StaticClass());
 		}
 	}
 

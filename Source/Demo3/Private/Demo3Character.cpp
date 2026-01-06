@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "FPSDemoPlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "Kismet/GameplayStatics.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -20,6 +21,11 @@ ADemo3Character::ADemo3Character()
 {
 	// Character doesnt have a rifle at start
 	bHasRifle = false;
+
+	// 初始化生命值
+	MaxHealth = 100.0f;
+	CurrentHealth = MaxHealth;
+	bIsDead = false;
 
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
@@ -67,7 +73,6 @@ void ADemo3Character::BeginPlay()
 		}
 	}
 	WeaponSystemComponent->SetPlayerController(Cast<AFPSDemoPlayerController>(Controller));
-
 }
 
 //////////////////////////////////////////////////////////////////////////// Input
@@ -152,52 +157,88 @@ UWeaponSystemComponent* ADemo3Character::GetWeaponSystemComponent()
 	return WeaponSystemComponent;
 }
 
-void ADemo3Character::TakeDamage(float DamageAmount)
+void ADemo3Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	if (DamageAmount <= 0.0f)
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ADemo3Character, MaxHealth);
+	DOREPLIFETIME(ADemo3Character, CurrentHealth);
+	DOREPLIFETIME(ADemo3Character, bIsDead);
+}
+
+float ADemo3Character::GetHealthPercent() const
+{
+	if (MaxHealth > 0.0f)
 	{
-		return;
+		return CurrentHealth / MaxHealth;
+	}
+	return 0.0f;
+}
+
+float ADemo3Character::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+                                  class AController* EventInstigator, AActor* DamageCauser)
+{
+	if (DamageAmount <= 0.0f || bIsDead)
+	{
+		return 0.0f;
 	}
 
-	if (GetLocalRole() == ROLE_Authority)
+	// 计算实际受到的伤害
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	// 计算受伤方向（从自身指向伤害源的单位向量）
+	FVector DamageDirection = FVector::ZeroVector;
+	if (DamageCauser != nullptr)
 	{
-		// 服务器权威逻辑
-		ADemo3PlayerState* PS = GetDemo3PlayerState();
-		if (PS == nullptr)
-		{
-			return;
-		}
+		FVector MyLocation = GetActorLocation();
+		FVector DamageSourceLocation = DamageCauser->GetActorLocation();
+		DamageDirection = (DamageSourceLocation - MyLocation).GetSafeNormal();
+	}
 
-		// 如果已经死亡，不再处理伤害
-		if (PS->GetIsDead())
-		{
-			return;
-		}
+	// 计算新血量
+	float NewHealth = FMath::Max(0.0f, CurrentHealth - ActualDamage);
+	CurrentHealth = NewHealth;
 
-		// 计算新血量
-		float NewHealth = FMath::Max(0.0f, PS->GetCurrentHealth() - DamageAmount);
-		PS->SetCurrentHealth(NewHealth);
+	// 广播受到伤害事件
+	OnDamaged.Broadcast(ActualDamage, DamageDirection);
 
-		// 如果血量归零，触发死亡
-		if (NewHealth <= 0.0f)
-		{
-			PS->SetCurrentHealth(0.0f);
-			PS->SetIsDead(true);
-			OnDeath();
-		}
-	}else if (GetLocalRole() == ROLE_AutonomousProxy)
+	// 广播生命值更新事件
+	OnHealthChanged.Broadcast(CurrentHealth, MaxHealth, GetHealthPercent());
+
+	// 如果血量归零，触发死亡
+	if (NewHealth <= 0.0f)
 	{
-		// TODO 预测逻辑
+		CurrentHealth = 0.0f;
+		bIsDead = true;
+		OnDeath();
+	}
+
+	return ActualDamage;
+}
+
+void ADemo3Character::OnRep_CurrentHealth()
+{
+	// 当血量在客户端同步时调用
+	// 广播生命值更新事件，用于UI更新等
+	OnHealthChanged.Broadcast(CurrentHealth, MaxHealth, GetHealthPercent());
+}
+
+void ADemo3Character::OnRep_IsDead()
+{
+	// 当死亡状态在客户端同步时调用
+	if (bIsDead)
+	{
+		// 可以在这里添加死亡效果等
 	}
 }
 
 void ADemo3Character::OnDeath()
 {
-	// 服务器端处理：禁用碰撞
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	if (GetMesh())
-	{
-		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    if (GetLocalRole() != ROLE_Authority) return;
+    // 服务器端处理：禁用碰撞
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    if (GetMesh()) {
+        GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
 	// 调用玩家死亡事件分发器

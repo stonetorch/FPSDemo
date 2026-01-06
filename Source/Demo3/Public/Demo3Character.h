@@ -58,6 +58,7 @@ public:
 public:
 	ADemo3Character();
 	virtual void PossessedBy(AController* NewController) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 protected:
 	virtual void BeginPlay() override;
 
@@ -79,11 +80,76 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Weapon)
 	bool GetHasRifle();
 
-	/** 受到伤害 */
-	UFUNCTION(BlueprintCallable, Category = Health)
-	void TakeDamage(float DamageAmount);
+	/** 最大血量 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Health, Replicated)
+	float MaxHealth;
+
+	/** 当前血量 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health, ReplicatedUsing = OnRep_CurrentHealth)
+	float CurrentHealth;
+
+	/** 是否已死亡 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health, ReplicatedUsing = OnRep_IsDead)
+	bool bIsDead;
+
+	/** 获取最大血量 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
+	float GetMaxHealth() const { return MaxHealth; }
+
+	/** 获取当前血量 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
+	float GetCurrentHealth() const { return CurrentHealth; }
+
+	/** 获取是否已死亡 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
+	bool GetIsDead() const { return bIsDead; }
+
+	/** 获取血量百分比 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Health)
+	float GetHealthPercent() const;
+
+	/** 
+	 * @brief TakeDamage 方法
+	 * @param DamageAmount 伤害值
+	 * @param DamageEvent 伤害事件
+	 * @param EventInstigator 伤害施加者
+	 * @param DamageCauser 伤害来源
+	 * @return 实际受到的伤害
+	 * @note 伤害处理逻辑在客户端和服务器都会进行。这允许客户端进行预测
+	 */
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	/** 生命值更新事件分发器 */
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHealthChanged, float, CurrentHealth, float, MaxHealth, float, HealthPercent);
+
+	/** 生命值更新事件
+	 * @param CurrentHealth 当前血量
+	 * @param MaxHealth 最大血量
+	 * @param HealthPercent 血量百分比
+	 */
+	UPROPERTY(BlueprintAssignable, Category = Health)
+	FOnHealthChanged OnHealthChanged;
+
+	/** 受到伤害事件分发器*/
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDamaged, float, DamageAmount, FVector, DamageDirection);
+
+	/** 受到伤害事件
+	 * @param DamageAmount 伤害值
+	 * @param DamageDirection 伤害方向，为一个单位向量
+	 * @note 这个事件在客户端也会发生。
+	 */
+	UPROPERTY(BlueprintAssignable, Category = Health)
+	FOnDamaged OnDamaged;
 
 protected:
+	/** 当血量变化时调用（用于通知客户端） */
+	UFUNCTION()
+	virtual void OnRep_CurrentHealth();
+
+	/** 当死亡状态变化时调用（用于通知客户端） */
+	UFUNCTION()
+	virtual void OnRep_IsDead();
+	
 	/** 死亡处理 - 服务器端 */
 	UFUNCTION()
 	virtual void OnDeath();
