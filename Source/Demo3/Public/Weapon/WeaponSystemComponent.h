@@ -17,6 +17,9 @@ class AWeaponBase;
  * - 武器切换
  * - 开火按键绑定
  * - 客户端下后坐力组件的更新,切换武器时后坐力组件的改变
+ *
+ * 额外支持的生命周期管理：
+ * - DestroyComponent，会自动销毁管理的所有武器，以及解除绑定等操作。可用于角色死亡。
  * 
  * @note 需要由持有它的Character在被PlayerController控制时调用SetPlayerController
  */

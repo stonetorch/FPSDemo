@@ -234,6 +234,7 @@ void ADemo3Character::OnRep_IsDead()
 
 void ADemo3Character::OnDeath()
 {
+	WeaponSystemComponent->DestroyComponent();
     if (GetLocalRole() != ROLE_Authority) return;
     // 服务器端处理：禁用碰撞
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
