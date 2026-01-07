@@ -1,9 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Demo3/Public/Weapon/WeaponRifle.h"
+#include "Demo3/Public/Weapon/WeaponSMG.h"
 #include "Demo3Character.h"
 #include "Demo3/Public/Demo3Projectile.h"
-#include "Weapon/WeaponTriggerSingle.h"
+#include "Weapon/WeaponTriggerAuto.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
@@ -12,11 +12,14 @@
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "Engine/DamageEvents.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
-AWeaponRifle::AWeaponRifle()
+AWeaponSMG::AWeaponSMG()
 {
 	// 初始化弹药
-	AmmoInClip = 100;
+	AmmoInClip = 30;
 	
 	// 创建武器网格体组件
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
@@ -30,32 +33,36 @@ AWeaponRifle::AWeaponRifle()
 	FireSound = nullptr;
 	FireAnimation = nullptr;
 	MuzzleOffset = FVector(100.0f, 0.0f, 10.0f);
+	DamageAmount = 10.0f;
+	BeamEffect = nullptr;
+	TracerFrequency = 1; // 默认每 1 发显示一次
+	FireCount = 0;
 
-	// 设置默认触发器为单发模式
-	TriggerClass = UWeaponTriggerSingle::StaticClass();
+	// 设置默认触发器为自动连续射击模式
+	TriggerClass = UWeaponTriggerAuto::StaticClass();
 }
 
-void AWeaponRifle::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void AWeaponSMG::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
-	DOREPLIFETIME(AWeaponRifle, AmmoInClip);
+	DOREPLIFETIME(AWeaponSMG, AmmoInClip);
 }
 
-void AWeaponRifle::SetupWeaponMesh()
+void AWeaponSMG::SetupWeaponMesh()
 {
 	// 获取拥有者
 	APawn* OwnerPawn = GetOwner() ? Cast<APawn>(GetOwner()) : nullptr;
 	if (!OwnerPawn)
 	{
-		UE_LOG(LogTemp, Error, TEXT("AWeaponRifle::SetupWeaponMesh: OwnerPawn is nullptr"));
+		UE_LOG(LogTemp, Error, TEXT("AWeaponSMG::SetupWeaponMesh: OwnerPawn is nullptr"));
 		return;
 	}
 	
 	ADemo3Character* Character = Cast<ADemo3Character>(OwnerPawn);
 	if (!Character)
 	{
-		UE_LOG(LogTemp, Error, TEXT("AWeaponRifle::SetupWeaponMesh: OwnerPawn is not a Demo3Character"));
+		UE_LOG(LogTemp, Error, TEXT("AWeaponSMG::SetupWeaponMesh: OwnerPawn is not a Demo3Character"));
 		return;
 	}
 	
@@ -87,7 +94,7 @@ void AWeaponRifle::SetupWeaponMesh()
 		}
 		else
 		{
-			// 远端：附加到第三人称身体 Mesh 的 hand_r 插槽（或其他合适的插槽）
+			// 远端：附加到第三人称身体 Mesh 的 Weapon_R 插槽
 			if (Character->GetMesh3P())
 			{
 				WeaponMesh->AttachToComponent(
@@ -103,7 +110,7 @@ void AWeaponRifle::SetupWeaponMesh()
 	}
 }
 
-void AWeaponRifle::DetachWeaponMesh()
+void AWeaponSMG::DetachWeaponMesh()
 {
 	// 分离武器 Mesh
 	if (WeaponMesh)
@@ -114,13 +121,13 @@ void AWeaponRifle::DetachWeaponMesh()
 	}
 }
 
-bool AWeaponRifle::CanFire() const
+bool AWeaponSMG::CanFire() const
 {
 	// 检查弹药
 	return AmmoInClip > 0;
 }
 
-void AWeaponRifle::ConsumeAmmo()
+void AWeaponSMG::ConsumeAmmo()
 {
 	// 扣除弹药
 	if (AmmoInClip > 0)
@@ -129,14 +136,9 @@ void AWeaponRifle::ConsumeAmmo()
 	}
 }
 
-void AWeaponRifle::SpawnProjectile(const FRotator& SpawnRotation)
+void AWeaponSMG::SpawnProjectile(const FRotator& SpawnRotation)
 {
-	// 生成子弹
-	if (ProjectileClass == nullptr)
-	{
-		return;
-	}
-	
+	// 使用射线检测完成伤害（仅在服务端执行）
 	APawn* OwnerPawn = GetOwner() ? Cast<APawn>(GetOwner()) : nullptr;
 	if (!OwnerPawn || !OwnerPawn->GetController())
 	{
@@ -149,26 +151,73 @@ void AWeaponRifle::SpawnProjectile(const FRotator& SpawnRotation)
 		return;
 	}
 	
+	// 只在服务端执行
+	if (GetLocalRole() != ROLE_Authority)
+	{
+		return;
+	}
 	
-	// MuzzleOffset 是相对于相机空间的偏移，需要转换为世界空间
-	// 从角色位置加上旋转后的偏移量得到最终的枪口位置
-	const FVector SpawnLocation = OwnerPawn->GetActorLocation() + SpawnRotation.RotateVector(MuzzleOffset);
+	// 计算枪口位置
+	const FVector StartLocation = OwnerPawn->GetActorLocation() + SpawnRotation.RotateVector(MuzzleOffset);
 	
-	FActorSpawnParameters ActorSpawnParams;
-	ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-	ActorSpawnParams.Owner = OwnerPawn;
-	ActorSpawnParams.Instigator = OwnerPawn;
+	// 计算射线方向
+	const FVector ForwardVector = SpawnRotation.Vector();
+	const float MaxRange = 10000.0f; // 最大射程
+	const FVector EndLocation = StartLocation + ForwardVector * MaxRange;
 	
-	// 在枪口位置生成投射物
-	World->SpawnActor<ADemo3Projectile>(
-		ProjectileClass,
-		SpawnLocation,
-		SpawnRotation,
-		ActorSpawnParams
+	// 射线检测参数
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(OwnerPawn);
+	QueryParams.AddIgnoredActor(this);
+	QueryParams.bTraceComplex = true;
+	QueryParams.bReturnPhysicalMaterial = false;
+	
+	// 执行射线检测
+	FHitResult HitResult;
+	bool bHit = World->LineTraceSingleByChannel(
+		HitResult,
+		StartLocation,
+		EndLocation,
+		ECC_Pawn, // 碰撞通道，可以根据需要调整
+		QueryParams
 	);
+	
+	// 计算实际的结束位置（命中点或最大射程点）
+	FVector ActualEndLocation = bHit ? HitResult.ImpactPoint : EndLocation;
+	
+	// 如果命中目标，应用伤害
+	if (bHit && HitResult.GetActor())
+	{
+		AActor* HitActor = HitResult.GetActor();
+		
+		// 检查是否命中角色
+		if (ADemo3Character* HitCharacter = Cast<ADemo3Character>(HitActor))
+		{
+			// 不会伤害自己
+			if (HitCharacter != OwnerPawn)
+			{
+				UGameplayStatics::ApplyDamage(
+					HitCharacter,
+					DamageAmount,
+					OwnerPawn->GetController(),
+					this,
+					UDamageType::StaticClass()
+				);
+			}
+		}
+	}
+	
+	// Tracer 方案：只在达到频率时才显示射线效果
+	FireCount++;
+	if (FireCount >= TracerFrequency)
+	{
+		FireCount = 0; // 重置计数器
+		// 在所有客户端显示射线效果
+		NetMulticastSpawnBeamEffect(StartLocation, ActualEndLocation);
+	}
 }
 
-void AWeaponRifle::PlayFireEffectsLocal()
+void AWeaponSMG::PlayFireEffectsLocal()
 {
 	// 播放本地开火效果（音效、动画等）
 	APawn* OwnerPawn = GetOwner() ? Cast<APawn>(GetOwner()) : nullptr;
@@ -208,7 +257,7 @@ void AWeaponRifle::PlayFireEffectsLocal()
 	}
 }
 
-void AWeaponRifle::PlayFireEffectsMulticast()
+void AWeaponSMG::PlayFireEffectsMulticast()
 {
 	// 播放多播开火效果（音效等）
 	APawn* OwnerPawn = GetOwner() ? Cast<APawn>(GetOwner()) : nullptr;
@@ -234,7 +283,7 @@ void AWeaponRifle::PlayFireEffectsMulticast()
 	}
 }
 
-void AWeaponRifle::SpawnProjectileAimingAt(const FVector& TargetLocation)
+void AWeaponSMG::SpawnProjectileAimingAt(const FVector& TargetLocation)
 {
 	// 计算弹道方向并开火
 	APawn* OwnerPawn = Cast<APawn>(Owner);
@@ -290,3 +339,31 @@ void AWeaponRifle::SpawnProjectileAimingAt(const FVector& TargetLocation)
 	SpawnProjectile(AimRotator);
 }
 
+void AWeaponSMG::NetMulticastSpawnBeamEffect_Implementation(const FVector& StartLocation, const FVector& EndLocation)
+{
+	// 在所有客户端显示射线效果
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	
+	if (BeamEffect)
+	{
+		// 计算光束的方向
+		FVector Direction = (EndLocation - StartLocation).GetSafeNormal();
+		
+		// 生成 Niagara 粒子系统（在起始位置）
+		UNiagaraComponent* BeamComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			World,
+			BeamEffect,
+			StartLocation,
+			Direction.Rotation()
+		);
+		
+		if (BeamComponent)
+		{
+			BeamComponent->SetVariableVec3(FName("User.BeamEnd"), EndLocation);
+		}
+	}
+}

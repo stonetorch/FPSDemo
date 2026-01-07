@@ -9,6 +9,7 @@
 #include "Demo3/Public/Weapon/WeaponBase.h"
 #include "Net/UnrealNetwork.h"
 #include "Weapon/RecoilBase.h"
+#include "Weapon/WeaponTriggerBase.h"
 
 // Sets default values for this component's properties
 UWeaponSystemComponent::UWeaponSystemComponent()
@@ -69,6 +70,9 @@ void UWeaponSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 
 	// 后坐力更新
 	if (ActiveRecoilLogic) ActiveRecoilLogic->Update(DeltaTime);
+
+	// 激活的开火方式更新
+	if (ActiveWeaponTrigger && ActiveWeaponTrigger->RequiresTick())ActiveWeaponTrigger->Tick(DeltaTime);
 }
 
 void UWeaponSystemComponent::SetPlayerController(AFPSDemoPlayerController* PC)
@@ -151,8 +155,10 @@ void UWeaponSystemComponent::EnableWeaponInput(AWeaponBase* Weapon)
 
 		if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerController->InputComponent))
 		{
-			// Fire
-			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, Weapon, &AWeaponBase::Fire);
+			ActiveWeaponTrigger = Weapon->GetTrigger();
+			// Fire - 使用 Started 和 Completed 事件来支持不同的开火模式
+			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, ActiveWeaponTrigger, &UWeaponTriggerBase::OnFirePressed);
+			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, ActiveWeaponTrigger, &UWeaponTriggerBase::OnFireReleased);
 		}
 	}
 }
@@ -160,6 +166,13 @@ void UWeaponSystemComponent::EnableWeaponInput(AWeaponBase* Weapon)
 void UWeaponSystemComponent::DisableWeaponInput(AWeaponBase* Weapon)
 {
 	if (GetOwnerRole() != ROLE_AutonomousProxy)	return;
+	
+	// 确保松开开火键（防止切换武器时还在开火）
+	if (ActiveWeaponTrigger)
+	{
+		ActiveWeaponTrigger->OnFireReleased();
+	}
+	
 	APawn* OwnerPawn = GetOwner() ? Cast<APawn>(GetOwner()) : nullptr;
 	if (!OwnerPawn)
 	{

@@ -4,6 +4,7 @@
 #include "Demo3Character.h"
 #include "Demo3/Public/Demo3Projectile.h"
 #include "Weapon/RecoilBase.h"
+#include "Weapon/WeaponTriggerBase.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
@@ -26,6 +27,7 @@ AWeaponBase::AWeaponBase()
 	bReplicates = true;
 	
 	RecoilLogic = nullptr;
+	Trigger = nullptr;
 }
 
 void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -77,7 +79,20 @@ void AWeaponBase::OnEquipped()
 			RecoilLogic = NewObject<URecoilBase>(this, RecoilLogicClass);
 		}
 		// 重置后坐力状态（装备新武器时重置）
-		RecoilLogic->ResetRecoil();
+		if (RecoilLogic)
+		{
+			RecoilLogic->ResetRecoil();
+		}
+
+		// 初始化开火触发器（仅本地）
+		if (TriggerClass && !Trigger)
+		{
+			Trigger = NewObject<UWeaponTriggerBase>(this, TriggerClass);
+			if (Trigger)
+			{
+				Trigger->Initialize(this);
+			}
+		}
 	}
 }
 
@@ -108,6 +123,12 @@ void AWeaponBase::OnUnequipped()
 		// 重置后坐力状态（卸下武器时重置）
 		RecoilLogic->ResetRecoil();
 	}
+
+	// 清理触发器状态
+	if (Trigger)
+	{
+		Trigger->OnFireReleased(); // 确保松开状态
+	}
 }
 
 URecoilBase* AWeaponBase::GetRecoil()
@@ -115,6 +136,20 @@ URecoilBase* AWeaponBase::GetRecoil()
 	if (RecoilLogic) return RecoilLogic;
 	if (RecoilLogicClass) RecoilLogic = NewObject<URecoilBase>(this, RecoilLogicClass);
 	return RecoilLogic;
+}
+
+UWeaponTriggerBase* AWeaponBase::GetTrigger()
+{
+	if (Trigger) return Trigger;
+	if (TriggerClass) 
+	{
+		Trigger = NewObject<UWeaponTriggerBase>(this, TriggerClass);
+		if (Trigger)
+		{
+			Trigger->Initialize(this);
+		}
+	}
+	return Trigger;
 }
 
 void AWeaponBase::Fire()

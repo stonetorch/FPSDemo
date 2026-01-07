@@ -6,6 +6,7 @@
 #include "WeaponBase.generated.h"
 
 class URecoilBase;
+class UWeaponTriggerBase;
 class ADemo3Character;
 class ADemo3Projectile;
 class USoundBase;
@@ -38,6 +39,12 @@ public:
 
     UPROPERTY(EditAnywhere)
     TSubclassOf<URecoilBase> RecoilLogicClass;
+
+    /**
+     * @brief 开火触发器类
+     */
+    UPROPERTY(EditAnywhere, Category = "Trigger")
+    TSubclassOf<UWeaponTriggerBase> TriggerClass;
     
     
     /**
@@ -50,6 +57,15 @@ public:
     UPROPERTY(Transient)
     URecoilBase* RecoilLogic;
 
+    /**
+     * @brief 开火触发器对象（仅本地）
+     *
+     * - 不参与网络复制
+     * - 只在本地持有者客户端使用
+     * - 负责处理开火触发逻辑
+     */
+    UPROPERTY(Transient)
+    UWeaponTriggerBase* Trigger;
     /**
      * @brief 武器被装备为当前手持武器
      *
@@ -73,7 +89,14 @@ public:
     URecoilBase* GetRecoil();
 
     /**
-    * @brief 开火逻辑的入口，由PlayerController调用
+     * @brief 获取开火触发器
+     * @return 武器使用的开火触发器
+     */
+    UWeaponTriggerBase* GetTrigger();
+
+
+    /**
+    * @brief 开火逻辑的入口，由 Trigger 调用
     * 调用后将：
     * 1. 播放本地效果
     * 2. 调用后坐力组件

@@ -5,6 +5,7 @@
 #include "WeaponSystemComponent.generated.h"
 
 
+class UWeaponTriggerBase;
 class URecoilBase;
 class AFPSDemoPlayerController;
 class AWeaponBase;
@@ -150,6 +151,8 @@ private:
     // ============= Player Controller ===========
     UPROPERTY()
     AFPSDemoPlayerController* PlayerController;
+    UPROPERTY()
+    UWeaponTriggerBase* ActiveWeaponTrigger;
     // ============= Recoil: Internal State ================
     UPROPERTY()
     URecoilBase* ActiveRecoilLogic;
