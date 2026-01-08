@@ -20,6 +20,7 @@ AWeaponRifle::AWeaponRifle()
 	
 	// 创建武器网格体组件
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetIsReplicated(false);
 	RootComponent = WeaponMesh;
 	
 	// 默认隐藏 Mesh（装备时再显示）
@@ -61,6 +62,8 @@ void AWeaponRifle::SetupWeaponMesh()
 	
 	// 判断是否为本地控制
 	bool bIsLocallyControlled = OwnerPawn->IsLocallyControlled() && OwnerPawn->IsPlayerControlled();
+
+	if (GetLocalRole() == ROLE_Authority) return;
 	
 	// 显示武器 Mesh
 	if (WeaponMesh)
@@ -80,9 +83,6 @@ void AWeaponRifle::SetupWeaponMesh()
 					AttachmentRules,
 					FName(TEXT("GripPoint"))
 				);
-				// 第一人称武器只对拥有者可见
-				WeaponMesh->SetOnlyOwnerSee(true);
-				WeaponMesh->SetOwnerNoSee(false);
 			}
 		}
 		else
@@ -95,9 +95,6 @@ void AWeaponRifle::SetupWeaponMesh()
 					AttachmentRules,
 					FName(TEXT("Weapon_R")) 
 				);
-				// 第三人称武器对其他人可见，但拥有者不可见（因为拥有者看第一人称）
-				WeaponMesh->SetOnlyOwnerSee(false);
-				WeaponMesh->SetOwnerNoSee(true);
 			}
 		}
 	}
@@ -105,10 +102,11 @@ void AWeaponRifle::SetupWeaponMesh()
 
 void AWeaponRifle::DetachWeaponMesh()
 {
+	if (GetLocalRole() == ROLE_Authority) return;
 	// 分离武器 Mesh
 	if (WeaponMesh)
 	{
-		WeaponMesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		WeaponMesh->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 		// 隐藏 Mesh
 		WeaponMesh->SetVisibility(false);
 	}

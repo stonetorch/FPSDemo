@@ -169,5 +169,11 @@ public:
     
     void EnableWeaponInput(AWeaponBase* Weapon);
     void DisableWeaponInput(AWeaponBase* Weapon);
+
+    bool ActionBount;
+    
+    // 输入回调（绑定到输入系统）
+    void OnFirePressed();
+    void OnFireReleased();
 #pragma endregion 
 };

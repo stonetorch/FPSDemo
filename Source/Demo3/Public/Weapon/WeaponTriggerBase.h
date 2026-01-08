@@ -41,7 +41,7 @@ public:
     /**
      * @brief 玩家松开开火键
      */
-    virtual void OnFireReleased()  PURE_VIRTUAL(::OnFireReleased);
+    virtual void OnFireReleased() {};
 
     virtual void Tick(float DeltaTime) {};
 
@@ -49,7 +49,7 @@ public:
      * @brief 检查是否需要 Tick
      * @return 如果需要 Tick 返回 true
      */
-    virtual bool RequiresTick() const PURE_VIRTUAL(::RequiresTick,return false;);
+    virtual bool RequiresTick() const {return false;};
 
 protected:
     /**

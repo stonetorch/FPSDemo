@@ -92,6 +92,13 @@ void ADemo3Character::SetupPlayerInputComponent(class UInputComponent* PlayerInp
 		//Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ADemo3Character::Look);
 
+		//Weapon Switching
+		EnhancedInputComponent->BindAction(IA_SwtichToWeaponSlot1, ETriggerEvent::Triggered, this, &ADemo3Character::SwitchToWeaponSlot1);
+		EnhancedInputComponent->BindAction(IA_SwtichToWeaponSlot2, ETriggerEvent::Triggered, this, &ADemo3Character::SwitchToWeaponSlot2);
+		EnhancedInputComponent->BindAction(IA_SwtichToWeaponSlot3, ETriggerEvent::Triggered, this, &ADemo3Character::SwitchToWeaponSlot3);
+		EnhancedInputComponent->BindAction(IA_SwtichToNextWeapon, ETriggerEvent::Triggered, this, &ADemo3Character::SwitchToNextWeapon);
+		EnhancedInputComponent->BindAction(IA_SwtichToPreviousWeapon, ETriggerEvent::Triggered, this, &ADemo3Character::SwitchToPreviousWeapon);
+
 		// 客户端处理：禁用输入（只在拥有该角色的客户端执行）
 		if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 		{
@@ -137,6 +144,46 @@ void ADemo3Character::Look(const FInputActionValue& Value)
 	}
 }
 
+void ADemo3Character::SwitchToWeaponSlot1()
+{
+	if (WeaponSystemComponent && WeaponSystemComponent->InventoryWeapons.Num() > 0)
+	{
+		WeaponSystemComponent->SwitchWeapon(WeaponSystemComponent->InventoryWeapons[0]);
+	}
+}
+
+void ADemo3Character::SwitchToWeaponSlot2()
+{
+	if (WeaponSystemComponent && WeaponSystemComponent->InventoryWeapons.Num() > 1)
+	{
+		WeaponSystemComponent->SwitchWeapon(WeaponSystemComponent->InventoryWeapons[1]);
+	}
+}
+
+void ADemo3Character::SwitchToWeaponSlot3()
+{
+	if (WeaponSystemComponent && WeaponSystemComponent->InventoryWeapons.Num() > 2)
+	{
+		WeaponSystemComponent->SwitchWeapon(WeaponSystemComponent->InventoryWeapons[2]);
+	}
+}
+
+void ADemo3Character::SwitchToNextWeapon()
+{
+	if (WeaponSystemComponent)
+	{
+		WeaponSystemComponent->SwitchToNextWeapon();
+	}
+}
+
+void ADemo3Character::SwitchToPreviousWeapon()
+{
+	if (WeaponSystemComponent)
+	{
+		WeaponSystemComponent->SwitchToPreviousWeapon();
+	}
+}
+
 void ADemo3Character::SetHasRifle(bool bNewHasRifle)
 {
 	bHasRifle = bNewHasRifle;
@@ -178,6 +225,12 @@ float ADemo3Character::GetHealthPercent() const
 float ADemo3Character::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
                                   class AController* EventInstigator, AActor* DamageCauser)
 {
+	// 只在服务器处理伤害逻辑
+	if (GetLocalRole() != ROLE_Authority)
+	{
+		return 0.0f;
+	}
+
 	if (DamageAmount <= 0.0f || bIsDead)
 	{
 		return 0.0f;
@@ -199,11 +252,11 @@ float ADemo3Character::TakeDamage(float DamageAmount, struct FDamageEvent const&
 	float NewHealth = FMath::Max(0.0f, CurrentHealth - ActualDamage);
 	CurrentHealth = NewHealth;
 
-	// 广播受到伤害事件
-	OnDamaged.Broadcast(ActualDamage, DamageDirection);
-
-	// 广播生命值更新事件
+	// 广播生命值更新事件（服务器端）
 	OnHealthChanged.Broadcast(CurrentHealth, MaxHealth, GetHealthPercent());
+
+	// 使用RPC通知客户端受到伤害
+	ClientOnDamaged(ActualDamage, DamageDirection);
 
 	// 如果血量归零，触发死亡
 	if (NewHealth <= 0.0f)
@@ -265,4 +318,13 @@ void ADemo3Character::ClientOnDeath_Implementation()
 	}
 
 	// TODO 死亡效果、复活逻辑（UI更新、音效、动画等）
+}
+
+void ADemo3Character::ClientOnDamaged_Implementation(float DamageAmount, FVector DamageDirection)
+{
+	// 广播受到伤害事件
+	OnDamaged.Broadcast(DamageAmount, DamageDirection);
+	
+	// 广播生命值更新事件
+	OnHealthChanged.Broadcast(CurrentHealth, MaxHealth, GetHealthPercent());
 }

@@ -31,6 +31,7 @@ UWeaponSystemComponent::UWeaponSystemComponent()
 void UWeaponSystemComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	ActionBount = false;
 }
 
 void UWeaponSystemComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -156,9 +157,14 @@ void UWeaponSystemComponent::EnableWeaponInput(AWeaponBase* Weapon)
 		if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerController->InputComponent))
 		{
 			ActiveWeaponTrigger = Weapon->GetTrigger();
-			// Fire - 使用 Started 和 Completed 事件来支持不同的开火模式
-			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, ActiveWeaponTrigger, &UWeaponTriggerBase::OnFirePressed);
-			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, ActiveWeaponTrigger, &UWeaponTriggerBase::OnFireReleased);
+			if (!ActionBount)
+			{
+				ActionBount = true;
+				// Fire - 使用 Started 和 Completed 事件来支持不同的开火模式
+				// 绑定到 WeaponSystemComponent 的成员函数，而不是直接绑定到 Trigger
+				EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &UWeaponSystemComponent::OnFirePressed);
+				EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &UWeaponSystemComponent::OnFireReleased);
+			}
 		}
 	}
 }
@@ -194,25 +200,25 @@ AWeaponBase* UWeaponSystemComponent::GetCurrentWeapon()
 
 void UWeaponSystemComponent::OnRep_CurrentWeapon()
 {
-	// 当前手持武器发生变化时的回调
-	// 该函数必须是"幂等"的，允许被多次调用而不产生副作用叠加
+	// 注意：该函数必须是"幂等"的，允许被多次调用而不产生副作用叠加
 	
 	// 获取旧的武器（在更新 LastWeapon 之前）
 	AWeaponBase* OldWeapon = LastWeapon;
+
+	// 如果没有变化，则忽略
+	if (OldWeapon == CurrentWeapon) return;
 	
-	// 如果上一把武器存在且与当前武器不同，卸下它
-	if (OldWeapon && OldWeapon != CurrentWeapon)
+	// 如果上一把武器存在，则卸下。
+	if (OldWeapon)
 	{
 		OldWeapon->OnUnequipped();
-		DisableWeaponInput(CurrentWeapon);
+		DisableWeaponInput(OldWeapon);
 	}
 	
 	// 如果当前武器存在，装备它
 	if (CurrentWeapon)
 	{
 		CurrentWeapon->OnEquipped();
-
-		// 配置输入
 		EnableWeaponInput(CurrentWeapon);
 
 		// 激活后坐力组件
@@ -360,4 +366,20 @@ void UWeaponSystemComponent::ServerSwitchWeapon_Implementation(AWeaponBase* NewW
 	// OnRep_CurrentWeapon 会在复制时自动调用
 	// 但为了确保服务器端也执行，手动调用一次
 	OnRep_CurrentWeapon();
+}
+
+void UWeaponSystemComponent::OnFirePressed()
+{
+	if (ActiveWeaponTrigger)
+	{
+		ActiveWeaponTrigger->OnFirePressed();
+	}
+}
+
+void UWeaponSystemComponent::OnFireReleased()
+{
+	if (ActiveWeaponTrigger)
+	{
+		ActiveWeaponTrigger->OnFireReleased();
+	}
 }

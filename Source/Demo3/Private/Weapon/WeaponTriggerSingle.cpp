@@ -2,18 +2,18 @@
 
 #include "Demo3/Public/Weapon/WeaponTriggerSingle.h"
 
+void UWeaponTriggerSingle::OnFirePressed()
+{
+    // 按下时立即开火一次
+    TriggerFire();
+}
+
 void UWeaponTriggerSingle::OnFireReleased()
 {
-    Super::OnFireReleased();
+    
 }
 
 bool UWeaponTriggerSingle::RequiresTick() const
 {
     return Super::RequiresTick();
-}
-
-void UWeaponTriggerSingle::OnFirePressed()
-{
-    // 按下时立即开火一次
-    TriggerFire();
 }

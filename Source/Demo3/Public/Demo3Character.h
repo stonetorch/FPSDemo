@@ -54,6 +54,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
 	class UInputAction* MoveAction;
 
+	/** Switch To Weapon Slot 1 Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* IA_SwtichToWeaponSlot1;
+
+	/** Switch To Weapon Slot 2 Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* IA_SwtichToWeaponSlot2;
+
+	/** Switch To Weapon Slot 3 Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* IA_SwtichToWeaponSlot3;
+
+	/** Switch To Next Weapon Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* IA_SwtichToNextWeapon;
+
+	/** Switch To Previous Weapon Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* IA_SwtichToPreviousWeapon;
+
 	
 public:
 	ADemo3Character();
@@ -115,7 +135,7 @@ public:
 	 * @param EventInstigator 伤害施加者
 	 * @param DamageCauser 伤害来源
 	 * @return 实际受到的伤害
-	 * @note 伤害处理逻辑在客户端和服务器都会进行。这允许客户端进行预测
+	 * @note 伤害处理逻辑在只在服务器进行。稍后通知客户端
 	 */
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
@@ -158,12 +178,31 @@ protected:
 	UFUNCTION(Client, Reliable)
 	void ClientOnDeath();
 
+	/** 受到伤害通知 - 客户端RPC，在拥有该角色的客户端执行 */
+	UFUNCTION(Client, Reliable)
+	void ClientOnDamaged(float DamageAmount, FVector DamageDirection);
+
 protected:
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
+
+	/** Called for switching to weapon slot 1 */
+	void SwitchToWeaponSlot1();
+
+	/** Called for switching to weapon slot 2 */
+	void SwitchToWeaponSlot2();
+
+	/** Called for switching to weapon slot 3 */
+	void SwitchToWeaponSlot3();
+
+	/** Called for switching to next weapon */
+	void SwitchToNextWeapon();
+
+	/** Called for switching to previous weapon */
+	void SwitchToPreviousWeapon();
 
 protected:
 	// APawn interface
