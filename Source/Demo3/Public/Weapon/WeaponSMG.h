@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "WeaponRifle.h"
 #include "Weapon/WeaponBase.h"
 #include "WeaponSMG.generated.h"
 
@@ -10,57 +11,14 @@ class UAnimMontage;
 
 /**
  * @brief 冲锋枪武器实现类
- *
- * 负责具体的武器实现：
- * - 弹药管理
- * - 投射物生成
- * - 网格体展示
- * - 音效播放
- * - 使用自动连续射击模式
  */
 UCLASS()
-class DEMO3_API AWeaponSMG : public AWeaponBase
+class DEMO3_API AWeaponSMG : public AWeaponRifle
 {
     GENERATED_BODY()
 
 public:
     AWeaponSMG();
-
-    /**
-     * @brief 弹夹中的弹药数
-     */
-    UPROPERTY(Replicated, EditDefaultsOnly, BlueprintReadOnly, Category = Ammo)
-    int32 AmmoInClip;
-
-    /**
-     * @brief 武器的网格体组件
-     */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Mesh)
-    USkeletalMeshComponent* WeaponMesh;
-
-    /**
-     * @brief 子弹类（用于生成投射物）
-     */
-    UPROPERTY(EditDefaultsOnly, Category = Projectile)
-    TSubclassOf<ADemo3Projectile> ProjectileClass;
-
-    /**
-     * @brief 开火音效
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
-    USoundBase* FireSound;
-
-    /**
-     * @brief 开火动画蒙太奇
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
-    UAnimMontage* FireAnimation;
-
-    /**
-     * @brief 枪口偏移（相对于角色位置）
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
-    FVector MuzzleOffset;
 
     /**
      * @brief 伤害值
@@ -79,6 +37,12 @@ public:
      */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Effects, meta = (ClampMin = "1"))
     int32 TracerFrequency;
+
+    /** 
+     * @brief 最大射程
+     */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Effects)
+    float MaxRange;
 
 private:
     /**
@@ -101,10 +65,6 @@ protected:
     ) const override;
 
     // 重写基类的 virtual 方法
-    virtual void SetupWeaponMesh() override;
-    virtual void DetachWeaponMesh() override;
-    virtual bool CanFire() const override;
-    virtual void ConsumeAmmo() override;
     virtual void SpawnProjectile(const FRotator& SpawnRotation) override;
     virtual void SpawnProjectileAimingAt(const FVector& TargetLocation) override;
     virtual void PlayFireEffectsLocal() override;

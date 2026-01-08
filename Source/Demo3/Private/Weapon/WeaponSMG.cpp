@@ -18,25 +18,11 @@
 
 AWeaponSMG::AWeaponSMG()
 {
-	// 初始化弹药
-	AmmoInClip = 30;
-	
-	// 创建武器网格体组件
-	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
-	RootComponent = WeaponMesh;
-	
-	// 默认隐藏 Mesh（装备时再显示）
-	WeaponMesh->SetVisibility(false);
-	
-	// 初始化默认值
-	ProjectileClass = nullptr;
-	FireSound = nullptr;
-	FireAnimation = nullptr;
-	MuzzleOffset = FVector(100.0f, 0.0f, 10.0f);
 	DamageAmount = 10.0f;
 	BeamEffect = nullptr;
-	TracerFrequency = 1; // 默认每 1 发显示一次
+	TracerFrequency = 1;
 	FireCount = 0;
+	MaxRange = 10000;
 
 	// 设置默认触发器为自动连续射击模式
 	TriggerClass = UWeaponTriggerAuto::StaticClass();
@@ -49,93 +35,6 @@ void AWeaponSMG::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(AWeaponSMG, AmmoInClip);
 }
 
-void AWeaponSMG::SetupWeaponMesh()
-{
-	// 获取拥有者
-	APawn* OwnerPawn = GetOwner() ? Cast<APawn>(GetOwner()) : nullptr;
-	if (!OwnerPawn)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AWeaponSMG::SetupWeaponMesh: OwnerPawn is nullptr"));
-		return;
-	}
-	
-	ADemo3Character* Character = Cast<ADemo3Character>(OwnerPawn);
-	if (!Character)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AWeaponSMG::SetupWeaponMesh: OwnerPawn is not a Demo3Character"));
-		return;
-	}
-	
-	// 判断是否为本地控制
-	bool bIsLocallyControlled = OwnerPawn->IsLocallyControlled() && OwnerPawn->IsPlayerControlled();
-	
-	// 显示武器 Mesh
-	if (WeaponMesh)
-	{
-		WeaponMesh->SetVisibility(true);
-		
-		// 根据是否为本地控制，附加到不同的骨骼
-		FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
-		
-		if (bIsLocallyControlled)
-		{
-			// 本地：附加到第一人称手臂 Mesh 的 GripPoint 插槽
-			if (Character->GetMesh1P())
-			{
-				WeaponMesh->AttachToComponent(
-					Character->GetMesh1P(),
-					AttachmentRules,
-					FName(TEXT("GripPoint"))
-				);
-				// 第一人称武器只对拥有者可见
-				WeaponMesh->SetOnlyOwnerSee(true);
-				WeaponMesh->SetOwnerNoSee(false);
-			}
-		}
-		else
-		{
-			// 远端：附加到第三人称身体 Mesh 的 Weapon_R 插槽
-			if (Character->GetMesh3P())
-			{
-				WeaponMesh->AttachToComponent(
-					Character->GetMesh3P(),
-					AttachmentRules,
-					FName(TEXT("Weapon_R")) 
-				);
-				// 第三人称武器对其他人可见，但拥有者不可见（因为拥有者看第一人称）
-				WeaponMesh->SetOnlyOwnerSee(false);
-				WeaponMesh->SetOwnerNoSee(true);
-			}
-		}
-	}
-}
-
-void AWeaponSMG::DetachWeaponMesh()
-{
-	// 分离武器 Mesh
-	if (WeaponMesh)
-	{
-		WeaponMesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-		// 隐藏 Mesh
-		WeaponMesh->SetVisibility(false);
-	}
-}
-
-bool AWeaponSMG::CanFire() const
-{
-	// 检查弹药
-	return AmmoInClip > 0;
-}
-
-void AWeaponSMG::ConsumeAmmo()
-{
-	// 扣除弹药
-	if (AmmoInClip > 0)
-	{
-		AmmoInClip--;
-	}
-}
-
 void AWeaponSMG::SpawnProjectile(const FRotator& SpawnRotation)
 {
 	// 使用射线检测完成伤害（仅在服务端执行）
@@ -144,25 +43,21 @@ void AWeaponSMG::SpawnProjectile(const FRotator& SpawnRotation)
 	{
 		return;
 	}
-	
 	UWorld* const World = GetWorld();
 	if (World == nullptr)
 	{
 		return;
 	}
-	
-	// 只在服务端执行
 	if (GetLocalRole() != ROLE_Authority)
 	{
 		return;
 	}
 	
-	// 计算枪口位置
 	const FVector StartLocation = OwnerPawn->GetActorLocation() + SpawnRotation.RotateVector(MuzzleOffset);
 	
-	// 计算射线方向
+	// 射线方向
 	const FVector ForwardVector = SpawnRotation.Vector();
-	const float MaxRange = 10000.0f; // 最大射程
+	MaxRange = 10000.0f;
 	const FVector EndLocation = StartLocation + ForwardVector * MaxRange;
 	
 	// 射线检测参数
