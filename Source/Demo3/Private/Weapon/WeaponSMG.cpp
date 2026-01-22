@@ -11,6 +11,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Engine/DamageEvents.h"
 #include "NiagaraFunctionLibrary.h"
@@ -18,6 +19,15 @@
 
 AWeaponSMG::AWeaponSMG()
 {
+	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+	if (WeaponMesh)
+	{
+		WeaponMesh->SetIsReplicated(false);
+		RootComponent = WeaponMesh;
+		// 默认隐藏 Mesh（装备时再显示）
+		WeaponMesh->SetVisibility(false);
+	}
+	
 	DamageAmount = 10.0f;
 	BeamEffect = nullptr;
 	TracerFrequency = 1;
@@ -178,61 +188,6 @@ void AWeaponSMG::PlayFireEffectsMulticast()
 	}
 }
 
-void AWeaponSMG::SpawnProjectileAimingAt(const FVector& TargetLocation)
-{
-	// 计算弹道方向并开火
-	APawn* OwnerPawn = Cast<APawn>(Owner);
-	if (!OwnerPawn)
-	{
-		return;
-	}
-	
-	// 获取投射物速度
-	float ProjectileSpeed = 3000.0f; // 默认速度
-	if (ProjectileClass)
-	{
-		ADemo3Projectile* ProjectileCDO = ProjectileClass->GetDefaultObject<ADemo3Projectile>();
-		if (ProjectileCDO && ProjectileCDO->GetProjectileMovement())
-		{
-			ProjectileSpeed = ProjectileCDO->GetProjectileMovement()->InitialSpeed;
-		}
-	}
-	
-	// 计算初始发射位置（使用从角色位置到目标的方向估算）
-	FVector OwnerLocation = OwnerPawn->GetActorLocation();
-	FVector DirectionToTarget = (TargetLocation - OwnerLocation).GetSafeNormal();
-	FRotator InitialDirection = DirectionToTarget.Rotation();
-	FVector LaunchLocation = OwnerLocation + InitialDirection.RotateVector(MuzzleOffset);
-	
-	// 计算能够命中目标的弹道方向
-	FVector LaunchVelocity;
-	FRotator AimRotator;
-	
-	// 使用 UE 的弹道预测函数计算考虑重力的弹道
-	if (UGameplayStatics::SuggestProjectileVelocity(
-		GetWorld(),
-		LaunchVelocity,
-		LaunchLocation,
-		TargetLocation,
-		ProjectileSpeed,
-		false,
-		0.0f,
-		0.0f,
-		ESuggestProjVelocityTraceOption::DoNotTrace))
-	{
-		// 成功计算出速度向量，转换为 Rotator（全局坐标系）
-		AimRotator = LaunchVelocity.Rotation();
-	}
-	else
-	{
-		// 如果无法计算（例如目标太远或无法到达），使用直接瞄准
-		FVector FinalDirectionToTarget = (TargetLocation - LaunchLocation).GetSafeNormal();
-		AimRotator = FinalDirectionToTarget.Rotation();
-	}
-	
-	// 生成投射物
-	SpawnProjectile(AimRotator);
-}
 
 void AWeaponSMG::NetMulticastSpawnBeamEffect_Implementation(const FVector& StartLocation, const FVector& EndLocation)
 {

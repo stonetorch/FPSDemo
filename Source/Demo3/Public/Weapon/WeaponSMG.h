@@ -1,8 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WeaponRifle.h"
-#include "Weapon/WeaponBase.h"
+#include "Weapon/WeaponRanged.h"
 #include "WeaponSMG.generated.h"
 
 class ADemo3Projectile;
@@ -11,9 +10,11 @@ class UAnimMontage;
 
 /**
  * @brief 冲锋枪武器实现类
+ *
+ * 使用 StaticMeshComponent 作为武器网格体
  */
 UCLASS()
-class DEMO3_API AWeaponSMG : public AWeaponRifle
+class DEMO3_API AWeaponSMG : public AWeaponRanged
 {
     GENERATED_BODY()
 
@@ -66,7 +67,6 @@ protected:
 
     // 重写基类的 virtual 方法
     virtual void SpawnProjectile(const FRotator& SpawnRotation) override;
-    virtual void SpawnProjectileAimingAt(const FVector& TargetLocation) override;
     virtual void PlayFireEffectsLocal() override;
     virtual void PlayFireEffectsMulticast() override;
 };
